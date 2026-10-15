@@ -22,7 +22,9 @@ func RunPull(args []string) error {
 		return err
 	}
 	if kind == Auto {
-		if argsContainMRURL(cleanArgs) {
+		if argsContainADOPRURL(cleanArgs) {
+			kind = AzureDevOps
+		} else if argsContainMRURL(cleanArgs) {
 			kind = GitLab
 		} else if argsContainPRURL(cleanArgs) {
 			kind = GitHub
@@ -47,7 +49,9 @@ func RunPush(args []string) error {
 		return err
 	}
 	if kind == Auto {
-		if argsContainMRURL(cleanArgs) {
+		if argsContainADOPRURL(cleanArgs) {
+			kind = AzureDevOps
+		} else if argsContainMRURL(cleanArgs) {
 			kind = GitLab
 		} else if argsContainPRURL(cleanArgs) {
 			kind = GitHub
@@ -119,6 +123,15 @@ func extractKindFlag(args []string) (Kind, []string, error) {
 		kind = parsed
 	}
 	return kind, clean, nil
+}
+
+func argsContainADOPRURL(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, "/_git/") && strings.Contains(strings.ToLower(arg), "/pullrequest/") {
+			return true
+		}
+	}
+	return false
 }
 
 func argsContainMRURL(args []string) bool {

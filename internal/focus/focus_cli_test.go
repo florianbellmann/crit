@@ -259,3 +259,28 @@ func TestResolveFocus_RangeResolvesBranchNamesToOIDs(t *testing.T) {
 		t.Fatalf("got %s..%s, want %s..%s", f.BaseSHA, f.HeadSHA, base, head)
 	}
 }
+
+func TestParseADOSpecAndURL(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    int
+		isURL   bool
+		wantErr bool
+	}{
+		{"2277", 2277, false, false},
+		{"https://dev.azure.com/org/My%20Project/_git/repo/pullrequest/2277", 2277, true, false},
+		{"https://org.visualstudio.com/Project/_git/repo/pullRequest/7?_a=files", 7, true, false},
+		{"https://dev.azure.com/org/project/_git/repo", 0, false, true},
+		{"https://github.com/a/b/pull/295", 0, false, true},
+		{"0", 0, false, true},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			got, err := parseADOSpec(c.in)
+			if (err != nil) != c.wantErr || got != c.want || LooksLikeADOPRURL(c.in) != c.isURL {
+				t.Errorf("parseADOSpec=%d,%v LooksLikeADOPRURL=%v; want %d wantErr=%v isURL=%v",
+					got, err, LooksLikeADOPRURL(c.in), c.want, c.wantErr, c.isURL)
+			}
+		})
+	}
+}

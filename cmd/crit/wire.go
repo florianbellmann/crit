@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tomasz-tomczyk/crit/internal/azdo"
 	"github.com/tomasz-tomczyk/crit/internal/browser"
 	"github.com/tomasz-tomczyk/crit/internal/config"
 	"github.com/tomasz-tomczyk/crit/internal/daemon"
@@ -81,13 +82,16 @@ func selectProvider(explicit forge.Kind) (forge.Provider, error) {
 	}
 	if selection == "" || selection == string(forge.Auto) {
 		host := forge.RemoteHost(remote)
-		if host != "" && !strings.Contains(host, "github") && !strings.Contains(host, "gitlab") && glabOwnsHost(host) {
+		if host != "" && !strings.Contains(host, "github") && !strings.Contains(host, "gitlab") && !forge.IsAzureDevOpsHost(host) && glabOwnsHost(host) {
 			selection = string(forge.GitLab)
 		}
 	}
 	kind, err := forge.DetectKind(selection, remote)
 	if err != nil {
 		return nil, err
+	}
+	if kind == forge.AzureDevOps {
+		return azdo.Provider{}, nil
 	}
 	if kind == forge.GitLab {
 		return gitlab.NewProvider(cfg.GitLabURL)
@@ -200,6 +204,32 @@ func init() {
 	}
 	wirePRResolveHooks()
 	wireMRResolveHooks()
+	wireADOResolveHooks()
+}
+
+func wireADOResolveHooks() {
+	focus.SetADOResolveHooks(
+		func(spec string) (focus.ChangeResolveInfo, error) {
+			id, err := azdo.ParsePRSpec(spec)
+			if err != nil {
+				return focus.ChangeResolveInfo{}, err
+			}
+			change, err := azdo.Provider{}.Get(context.Background(), forge.RepoContext{}, id)
+			if err != nil {
+				return focus.ChangeResolveInfo{}, err
+			}
+			return focus.ChangeResolveInfo{
+				URL: change.URL, Number: change.ID.Number, Title: change.Title,
+				BaseRefOid: change.BaseSHA, HeadRefOid: change.HeadSHA,
+				BaseRefName: change.BaseRefName, HeadRefName: change.HeadRefName,
+				HeadRepoURL: change.HeadRepo.CloneURL, BaseRepoProject: id.Project, HeadRepoProject: change.HeadRepo.Project,
+				HeadRepoHost: id.Host, IsCrossRepository: change.CrossRepository,
+			}, nil
+		},
+		func(info focus.ChangeResolveInfo, v vcs.VCS) bool {
+			return v != nil && v.DefaultBranch() != "" && info.BaseRefName != v.DefaultBranch()
+		},
+	)
 }
 
 func wirePRResolveHooks() {

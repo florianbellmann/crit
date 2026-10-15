@@ -167,3 +167,17 @@ func TestFocusKeyArgs_FallsBackToFiles(t *testing.T) {
 		t.Errorf("got %v", got)
 	}
 }
+
+func TestADOFocusKey(t *testing.T) {
+	f := Focus{Kind: FocusRange, Forge: "azuredevops", ChangeNumber: 7, RemoteBaseProject: "proj/repo", RemoteHost: "https://dev.azure.com/org"}
+	qualified := "ado:dev.azure.com/org/proj/repo#7"
+	for _, c := range []struct{ got, want string }{
+		{focusKeyFor(f), qualified},
+		{FocusKeyArgs(&CLIReviewConfig{Focus: &f})[0], qualified},
+		{ADOFocusKey(7, "", ""), "ado:7"},
+	} {
+		if c.got != c.want {
+			t.Errorf("key = %q, want %q", c.got, c.want)
+		}
+	}
+}

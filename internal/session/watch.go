@@ -498,6 +498,9 @@ func carryForwardComment(old Comment, now string) Comment {
 		GitLabNoteID:       old.GitLabNoteID,
 		GitLabDiscussionID: old.GitLabDiscussionID,
 		GitLabResolved:     old.GitLabResolved,
+		AzdoThreadID:       old.AzdoThreadID,
+		AzdoCommentID:      old.AzdoCommentID,
+		AzdoResolved:       old.AzdoResolved,
 		// LastPushedBodyHash is the digest of Body at the most recent
 		// successful GitHub push; `crit push` uses it to decide POST vs
 		// PATCH vs skip. Must round-trip with GitHubID, otherwise every

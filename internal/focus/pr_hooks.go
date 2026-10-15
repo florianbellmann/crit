@@ -22,10 +22,12 @@ type ChangeResolveInfo struct {
 var (
 	// FetchPRHook resolves a --pr <num|url> spec. The raw CLI value is passed
 	// through so URL-derived owner/repo survives (mirrors FetchMRHook).
-	FetchPRHook     func(spec string) (ChangeResolveInfo, error)
-	IsStackedPRHook func(info ChangeResolveInfo, v vcs.VCS) bool
-	FetchMRHook     func(spec string) (ChangeResolveInfo, error)
-	IsStackedMRHook func(info ChangeResolveInfo, v vcs.VCS) bool
+	FetchPRHook      func(spec string) (ChangeResolveInfo, error)
+	IsStackedPRHook  func(info ChangeResolveInfo, v vcs.VCS) bool
+	FetchADOHook     func(spec string) (ChangeResolveInfo, error)
+	IsStackedADOHook func(info ChangeResolveInfo, v vcs.VCS) bool
+	FetchMRHook      func(spec string) (ChangeResolveInfo, error)
+	IsStackedMRHook  func(info ChangeResolveInfo, v vcs.VCS) bool
 )
 
 // SetPRResolveHooks wires PR resolution from cmd/crit to break focus↔github cycles.
@@ -45,4 +47,14 @@ func SetMRResolveHooks(
 ) {
 	FetchMRHook = fetch
 	IsStackedMRHook = stacked
+}
+
+// SetADOResolveHooks wires Azure DevOps pull-request resolution through the
+// same neutral metadata shape used by PR and MR focus.
+func SetADOResolveHooks(
+	fetch func(spec string) (ChangeResolveInfo, error),
+	stacked func(info ChangeResolveInfo, v vcs.VCS) bool,
+) {
+	FetchADOHook = fetch
+	IsStackedADOHook = stacked
 }

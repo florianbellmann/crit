@@ -72,6 +72,8 @@ func daemonArgsFromCliArgs(sessionKey string, cliArgs []string) []string {
 		switch {
 		case strings.HasPrefix(cliArgs[0], "pr:"):
 			return append(args, "--pr", strings.TrimPrefix(cliArgs[0], "pr:"))
+		case strings.HasPrefix(cliArgs[0], "ado:"):
+			return append(args, "--ado", strings.TrimPrefix(cliArgs[0], "ado:"))
 		case strings.HasPrefix(cliArgs[0], "mr:"):
 			return append(args, "--mr", strings.TrimPrefix(cliArgs[0], "mr:"))
 		case strings.HasPrefix(cliArgs[0], "range:"):

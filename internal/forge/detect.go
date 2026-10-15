@@ -15,9 +15,17 @@ func ParseKind(value string) (Kind, error) {
 		return GitHub, nil
 	case GitLab:
 		return GitLab, nil
+	case AzureDevOps:
+		return AzureDevOps, nil
 	default:
-		return "", fmt.Errorf("invalid forge %q (expected auto, github, or gitlab)", value)
+		return "", fmt.Errorf("invalid forge %q (expected auto, github, gitlab, or azuredevops)", value)
 	}
+}
+
+// IsAzureDevOpsHost recognizes Azure DevOps Services HTTPS and SSH hosts.
+func IsAzureDevOpsHost(host string) bool {
+	host = strings.ToLower(host)
+	return host == "dev.azure.com" || host == "ssh.dev.azure.com" || strings.HasSuffix(host, ".visualstudio.com")
 }
 
 // DetectKind applies an explicit selection first, then recognizes common
@@ -28,6 +36,9 @@ func DetectKind(explicit string, remote string) (Kind, error) {
 		return kind, err
 	}
 	host := remoteHost(remote)
+	if IsAzureDevOpsHost(host) {
+		return AzureDevOps, nil
+	}
 	if strings.Contains(host, "gitlab") {
 		return GitLab, nil
 	}

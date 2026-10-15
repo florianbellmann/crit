@@ -105,6 +105,8 @@ func (f Focus) PickerVisible() bool {
 //	pr:<project>#<num>             — URL-qualified GitHub PR
 //	mr:<num>                       — range focus with MR IID (checkout-scoped)
 //	mr:<project>#<num>             — URL-qualified GitLab MR
+//	ado:<num>                      — range focus with Azure DevOps PR id
+//	ado:<org>/<project>#<num>      — URL-qualified Azure DevOps PR
 //	range:<baseSHA>..<headSHA>     — range focus without PR number
 //	""                             — working-tree (and unknown)
 //
@@ -118,6 +120,9 @@ func focusKeyFor(f Focus) string {
 	if f.ChangeNumber > 0 {
 		if f.Forge == "gitlab" {
 			return MRFocusKey(f.ChangeNumber, f.RemoteBaseProject, f.RemoteHost)
+		}
+		if f.Forge == "azuredevops" {
+			return ADOFocusKey(f.ChangeNumber, f.RemoteBaseProject, f.RemoteHost)
 		}
 		// github or empty forge (legacy ChangeNumber without Forge) → pr:…
 		return PRFocusKey(f.ChangeNumber, f.RemoteBaseProject, f.RemoteHost)
@@ -151,6 +156,17 @@ func MRFocusKey(number int, project, host string) string {
 		return fmt.Sprintf("mr:%s/%s#%d", host, project, number)
 	}
 	return fmt.Sprintf("mr:%s#%d", project, number)
+}
+
+// ADOFocusKey is the Azure DevOps PR identity used for daemon session keys and
+// comment FocusKey stamping. Bare numbers stay "ado:N"; URL-qualified reviews
+// include the organization URL (host) and project/repo.
+func ADOFocusKey(number int, project, host string) string {
+	if project == "" {
+		return fmt.Sprintf("ado:%d", number)
+	}
+	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
+	return fmt.Sprintf("ado:%s/%s#%d", host, project, number)
 }
 
 // visibleInFocus reports whether c should be shown in the given focus.

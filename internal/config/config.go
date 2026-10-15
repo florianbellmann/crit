@@ -65,7 +65,7 @@ type Config struct {
 	// treats negative values as disabled too (see CloseOnApproveAfterMsEnabled).
 	CloseOnApproveAfterMs *int              `json:"close_on_approve_after_ms,omitempty"`
 	VCS                   string            `json:"vcs,omitempty"`   // preferred VCS backend: "git", "sl", "jj"
-	Forge                 string            `json:"forge,omitempty"` // remote review provider: "auto", "github", "gitlab"
+	Forge                 string            `json:"forge,omitempty"` // remote review provider: "auto", "github", "gitlab", "azuredevops"
 	GitLabURL             string            `json:"gitlab_url,omitempty"`
 	ShareConsented        bool              `json:"share_consented,omitempty"`
 	LiveCookie            string            `json:"live_cookie,omitempty"`

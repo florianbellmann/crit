@@ -101,6 +101,7 @@ Open an inline review for git changes, a commit range, a PR/MR, or files.
 Options:
       --pr <num|url>          Review a GitHub pull request
       --mr <iid|url>          Review a GitLab merge request
+      --ado <num|url>         Review an Azure DevOps pull request
       --range <base>..<head>  Review a commit range
       --base-branch <branch>  Override the diff base
       --no-open               Do not open a browser
@@ -315,6 +316,7 @@ Review:
   crit preview <file.html>                   Review a local HTML file in preview mode
   crit --pr <num|url>                        Review a GitHub pull request
   crit --mr <iid|url>                        Review a GitLab merge request
+  crit --ado <num|url>                       Review an Azure DevOps pull request
   crit --range <base>..<head>                Review a commit range
   crit plan --name <slug> <file>             Review a plan file
   crit story                                 Generate and review a story-mode diff

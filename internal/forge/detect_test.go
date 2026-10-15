@@ -13,6 +13,10 @@ func TestDetectKind(t *testing.T) {
 		{"auto", "git@gitlab.example.com:group/repo.git", GitLab},
 		{"", "https://github.com/acme/repo.git", GitHub},
 		{"", "ssh://git@code.example.com/acme/repo.git", GitHub},
+		{"", "https://acme@dev.azure.com/acme/Platform/_git/widget", AzureDevOps},
+		{"", "git@ssh.dev.azure.com:v3/acme/Platform/widget", AzureDevOps},
+		{"", "https://acme.visualstudio.com/Platform/_git/widget", AzureDevOps},
+		{"azuredevops", "https://github.com/acme/repo.git", AzureDevOps},
 	}
 	for _, tt := range tests {
 		got, err := DetectKind(tt.explicit, tt.remote)

@@ -39,6 +39,21 @@ const (
 var prURLRe = regexp.MustCompile(`^https?://[^/]+/[^/]+/[^/]+/pull/(\d+)(?:[/?#].*)?$`)
 var mrURLRe = regexp.MustCompile(`^https?://[^/]+/.+/-/merge_requests/(\d+)(?:[/?#].*)?$`)
 
+// adoPRURLRe matches Azure DevOps PR URLs like
+// https://dev.azure.com/org/project/_git/repo/pullrequest/123.
+var adoPRURLRe = regexp.MustCompile(`^https?://[^/]+/.+/_git/[^/]+/(?i:pullrequest)/(\d+)(?:[/?#].*)?$`)
+
+func parseADOSpec(spec string) (int, error) {
+	if m := adoPRURLRe.FindStringSubmatch(spec); m != nil {
+		return strconv.Atoi(m[1])
+	}
+	n, err := strconv.Atoi(spec)
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("invalid Azure DevOps pull request %q (expected number or https://.../_git/<repo>/pullrequest/N URL)", spec)
+	}
+	return n, nil
+}
+
 // parsePRSpec resolves --pr <num|url> to a numeric PR number. Returns an error
 // for non-numeric, non-positive, or unparsable inputs.
 func parsePRSpec(spec string) (int, error) {
@@ -153,6 +168,8 @@ func ResolveFocus(change ChangeSpec, rangeSpec, scopeSpec string, remoteFiles bo
 		return resolveFocusFromPR(change.Value, scope, remoteFiles, v, repoRoot)
 	case "gitlab":
 		return resolveFocusFromMR(change.Value, scope, remoteFiles, v, repoRoot)
+	case "azuredevops":
+		return resolveFocusFromADO(change.Value, scope, remoteFiles, v, repoRoot)
 	case "":
 		// No change request; range or working-tree mode continues below.
 	default:
@@ -177,6 +194,21 @@ func resolveFocusFromPR(prSpec string, scope DiffScope, remoteFiles bool, v vcs.
 		return nil, fmt.Errorf("resolving PR #%d: %w", prNum, err)
 	}
 	return resolveFocusFromChange(info, "github", "PR", scope, remoteFiles, v, repoRoot)
+}
+
+func resolveFocusFromADO(spec string, scope DiffScope, remoteFiles bool, v vcs.VCS, repoRoot string) (*Focus, error) {
+	prID, err := parseADOSpec(spec)
+	if err != nil {
+		return nil, err
+	}
+	if FetchADOHook == nil {
+		return nil, fmt.Errorf("resolving Azure DevOps PR %d: PR fetch not wired", prID)
+	}
+	info, err := FetchADOHook(spec)
+	if err != nil {
+		return nil, fmt.Errorf("resolving Azure DevOps PR %d: %w", prID, err)
+	}
+	return resolveFocusFromChange(info, "azuredevops", "PR", scope, remoteFiles, v, repoRoot)
 }
 
 func resolveFocusFromMR(mrSpec string, scope DiffScope, remoteFiles bool, v vcs.VCS, repoRoot string) (*Focus, error) {
@@ -254,10 +286,14 @@ func resolveFocusFromChange(info ChangeResolveInfo, provider, labelKind string, 
 		HeadRefName:       info.HeadRefName,
 		DiffScope:         scope,
 	}
-	if provider == "gitlab" {
+	switch provider {
+	case "gitlab":
 		focus.MRURL = info.URL
 		focus.IsStacked = IsStackedMRHook != nil && IsStackedMRHook(info, v)
-	} else {
+	case "azuredevops":
+		focus.PRURL = info.URL
+		focus.IsStacked = IsStackedADOHook != nil && IsStackedADOHook(info, v)
+	default:
 		focus.PRURL = info.URL
 		focus.IsStacked = IsStackedPRHook != nil && IsStackedPRHook(info, v)
 	}

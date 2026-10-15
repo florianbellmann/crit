@@ -10,6 +10,7 @@ import (
 	"github.com/tomasz-tomczyk/crit/internal/clicmd"
 	"github.com/tomasz-tomczyk/crit/internal/config"
 	"github.com/tomasz-tomczyk/crit/internal/focus"
+	"github.com/tomasz-tomczyk/crit/internal/forge"
 	"github.com/tomasz-tomczyk/crit/internal/session"
 	"github.com/tomasz-tomczyk/crit/internal/vcs"
 )
@@ -119,6 +120,13 @@ func parseDaemonFlags(args []string) daemonFlagSet {
 			return fmt.Errorf("--pr and --mr are mutually exclusive")
 		}
 		changeSpec, changeForge = value, "gitlab"
+		return nil
+	})
+	fs.Func("ado", "Review an Azure DevOps pull request by number or URL", func(value string) error {
+		if changeForge != "" && changeForge != "azuredevops" {
+			return fmt.Errorf("--ado cannot be combined with --pr or --mr")
+		}
+		changeSpec, changeForge = value, "azuredevops"
 		return nil
 	})
 	rangeSpec := fs.String("range", "", "Review a commit range, base..head (e.g. abc1234..def5678)")
@@ -304,7 +312,7 @@ func ResolveDaemonCLIConfig(args []string) (*DaemonCLIConfig, error) { //nolint:
 		ignorePatterns = cfg.IgnorePatterns
 	}
 
-	change := focus.ChangeSpec{Forge: sf.changeForge, Value: sf.changeSpec}
+	change := focus.ChangeSpec{Forge: adoAwareForge(sf.changeForge, sf.changeSpec), Value: sf.changeSpec}
 	f, err := focus.ResolveFocus(change, sf.rangeSpec, sf.scopeSpec, sf.remoteFiles, v, repoRoot)
 	if err != nil {
 		return nil, err
@@ -396,9 +404,28 @@ func FocusKeyArgs(sc *DaemonCLIConfig) []string {
 		if sc.Focus.Forge == "gitlab" {
 			return []string{session.MRFocusKey(sc.Focus.ChangeNumber, sc.Focus.RemoteBaseProject, sc.Focus.RemoteHost)}
 		}
+		if sc.Focus.Forge == "azuredevops" {
+			return []string{session.ADOFocusKey(sc.Focus.ChangeNumber, sc.Focus.RemoteBaseProject, sc.Focus.RemoteHost)}
+		}
 		return []string{session.PRFocusKey(sc.Focus.ChangeNumber, sc.Focus.RemoteBaseProject, sc.Focus.RemoteHost)}
 	}
 	return []string{fmt.Sprintf("range:%s..%s", sc.Focus.BaseSHA, sc.Focus.HeadSHA)}
+}
+
+// adoAwareForge keeps `crit pr <n>` working in Azure DevOps checkouts: ADO
+// calls them pull requests too. A --pr value that is an ADO URL, or a bare
+// number in a checkout whose remote is ADO, resolves through the ADO adapter.
+func adoAwareForge(changeForge, changeSpec string) string {
+	if changeForge != "github" {
+		return changeForge
+	}
+	if focus.LooksLikeADOPRURL(changeSpec) {
+		return "azuredevops"
+	}
+	if !focus.LooksLikePRURL(changeSpec) && DetectForgeKindFn != nil && DetectForgeKindFn() == forge.AzureDevOps {
+		return "azuredevops"
+	}
+	return changeForge
 }
 
 // ResolvePortFromEnv mirrors config.ResolvePort for tests that assemble DaemonCLIConfig manually.

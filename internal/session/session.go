@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -90,6 +91,10 @@ type Reply struct {
 	// edit, and delete mutations through GitLab's Discussions API. Resolution
 	// belongs to the parent comment because GitLab resolves whole discussions.
 	GitLabDiscussionID string `json:"gitlab_discussion_id,omitempty"`
+	// AzdoThreadID and AzdoCommentID identify the Azure DevOps PR thread and
+	// comment. Resolution belongs to the parent comment (ADO resolves threads).
+	AzdoThreadID  int64 `json:"azdo_thread_id,omitempty"`
+	AzdoCommentID int64 `json:"azdo_comment_id,omitempty"`
 
 	// LastPushedBodyHash is a short stable digest of Body at the time of
 	// the most recent successful push (POST or PATCH) to GitHub. Used by
@@ -161,6 +166,9 @@ type Comment struct {
 	GitLabNoteID       int64   `json:"gitlab_note_id,omitempty"`
 	GitLabDiscussionID string  `json:"gitlab_discussion_id,omitempty"`
 	GitLabResolved     *bool   `json:"gitlab_resolved,omitempty"`
+	AzdoThreadID       int64   `json:"azdo_thread_id,omitempty"`
+	AzdoCommentID      int64   `json:"azdo_comment_id,omitempty"`
+	AzdoResolved       *bool   `json:"azdo_resolved,omitempty"`
 
 	// LastPushedBodyHash is a short stable digest of Body at the time of
 	// the most recent successful push (POST or PATCH) to GitHub. Used by
@@ -1733,6 +1741,9 @@ func (s *Session) DeleteFileCommentAs(filePath, id, requesterID string) deleteRe
 	if c.GitLabNoteID != 0 && c.GitLabDiscussionID != "" {
 		s.appendPendingRemoteDelete(RemoteRef{Forge: forge.GitLab, ChangeNumber: s.Focus.ChangeNumber, CommentID: c.GitLabNoteID, ThreadID: c.GitLabDiscussionID})
 	}
+	if c.AzdoCommentID != 0 && c.AzdoThreadID != 0 {
+		s.appendPendingRemoteDelete(RemoteRef{Forge: forge.AzureDevOps, ChangeNumber: s.Focus.ChangeNumber, CommentID: c.AzdoCommentID, ThreadID: strconv.FormatInt(c.AzdoThreadID, 10)})
+	}
 	f.Comments = append(f.Comments[:i], f.Comments[i+1:]...)
 	s.trackDeletedComment(f.Path, id)
 	s.scheduleWrite()
@@ -1752,6 +1763,9 @@ func (s *Session) DeleteComment(filePath, id string) bool {
 	}
 	if c.GitLabNoteID != 0 && c.GitLabDiscussionID != "" {
 		s.appendPendingRemoteDelete(RemoteRef{Forge: forge.GitLab, ChangeNumber: s.Focus.ChangeNumber, CommentID: c.GitLabNoteID, ThreadID: c.GitLabDiscussionID})
+	}
+	if c.AzdoCommentID != 0 && c.AzdoThreadID != 0 {
+		s.appendPendingRemoteDelete(RemoteRef{Forge: forge.AzureDevOps, ChangeNumber: s.Focus.ChangeNumber, CommentID: c.AzdoCommentID, ThreadID: strconv.FormatInt(c.AzdoThreadID, 10)})
 	}
 	f.Comments = append(f.Comments[:i], f.Comments[i+1:]...)
 	s.trackDeletedComment(f.Path, id)
@@ -1869,6 +1883,9 @@ func (s *Session) DeleteReply(filePath, commentID, replyID string) bool {
 			}
 			if r.GitLabNoteID != 0 && r.GitLabDiscussionID != "" {
 				s.appendPendingRemoteDelete(RemoteRef{Forge: forge.GitLab, ChangeNumber: s.Focus.ChangeNumber, CommentID: r.GitLabNoteID, ThreadID: r.GitLabDiscussionID})
+			}
+			if r.AzdoCommentID != 0 && r.AzdoThreadID != 0 {
+				s.appendPendingRemoteDelete(RemoteRef{Forge: forge.AzureDevOps, ChangeNumber: s.Focus.ChangeNumber, CommentID: r.AzdoCommentID, ThreadID: strconv.FormatInt(r.AzdoThreadID, 10)})
 			}
 			f.Comments[i].Replies = append(f.Comments[i].Replies[:j], f.Comments[i].Replies[j+1:]...)
 			f.Comments[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)

@@ -35,6 +35,9 @@ func FocusKeyArgs(sc *CLIReviewConfig) []string {
 		if sc.Focus.Forge == "gitlab" {
 			return []string{MRFocusKey(sc.Focus.ChangeNumber, sc.Focus.RemoteBaseProject, sc.Focus.RemoteHost)}
 		}
+		if sc.Focus.Forge == "azuredevops" {
+			return []string{ADOFocusKey(sc.Focus.ChangeNumber, sc.Focus.RemoteBaseProject, sc.Focus.RemoteHost)}
+		}
 		return []string{PRFocusKey(sc.Focus.ChangeNumber, sc.Focus.RemoteBaseProject, sc.Focus.RemoteHost)}
 	}
 	return []string{fmt.Sprintf("range:%s..%s", sc.Focus.BaseSHA, sc.Focus.HeadSHA)}

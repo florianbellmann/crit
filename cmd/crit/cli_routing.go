@@ -37,7 +37,7 @@ func routePositionalArgs(args []string) positionalRoute {
 	return positionalRouteReview
 }
 
-// changeReviewArgs rewrites one GitHub PR or GitLab MR URL to explicit review argv.
+// changeReviewArgs rewrites one GitHub PR, GitLab MR, or Azure DevOps PR URL to explicit review argv.
 func changeReviewArgs(args []string) ([]string, bool) {
 	if len(args) != 1 {
 		return nil, false
@@ -45,6 +45,8 @@ func changeReviewArgs(args []string) ([]string, bool) {
 	switch {
 	case focus.LooksLikePRURL(args[0]):
 		return []string{"--pr", args[0]}, true
+	case focus.LooksLikeADOPRURL(args[0]):
+		return []string{"--ado", args[0]}, true
 	case focus.LooksLikeMRURL(args[0]):
 		return []string{"--mr", args[0]}, true
 	default:

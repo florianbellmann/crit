@@ -742,6 +742,7 @@ var forgeCLIProbes = []struct {
 }{
 	{name: "GitHub", binary: "gh", authArgs: []string{"auth", "status"}, loginHint: "gh auth login"},
 	{name: "GitLab", binary: "glab", authArgs: []string{"auth", "status"}, loginHint: "glab auth login"},
+	{name: "Azure DevOps", binary: "az", authArgs: []string{"account", "show"}, loginHint: "az login"},
 }
 
 // checkForgeCLIs returns installed forge CLIs and their authentication state.

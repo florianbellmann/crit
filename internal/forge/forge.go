@@ -10,9 +10,10 @@ import "context"
 type Kind string
 
 const (
-	Auto   Kind = "auto"
-	GitHub Kind = "github"
-	GitLab Kind = "gitlab"
+	Auto        Kind = "auto"
+	GitHub      Kind = "github"
+	GitLab      Kind = "gitlab"
+	AzureDevOps Kind = "azuredevops"
 )
 
 // ChangeID identifies a pull or merge request. Number is the repository-local

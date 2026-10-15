@@ -40,3 +40,8 @@ func SetProbeDaemonFocusFnForTest(fn func() *Focus) (restore func()) {
 	}
 	return func() { probeDaemonFocusFn = prev }
 }
+
+// LooksLikeADOPRURL reports whether spec is an Azure DevOps pull request URL.
+func LooksLikeADOPRURL(spec string) bool {
+	return adoPRURLRe.MatchString(spec)
+}
