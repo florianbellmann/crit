@@ -18,9 +18,10 @@ Review and revise code changes, plans, live pages (running dev servers, staging 
 The CLI auto-detects the review mode from its arguments. **Do not ask the user which mode to use.** Pass `$ARGUMENTS` through:
 
 ```
-crit $ARGUMENTS               # file, dir, URL, .html — CLI auto-detects mode
+crit $ARGUMENTS               # file, dir, URL, .html, PR/MR number (forge from origin) — CLI auto-detects mode
 crit --pr <num|url>            # GitHub PR (range mode)
 crit --mr <iid|url>            # GitLab MR (range mode)
+crit --ado <num|url>           # Azure DevOps PR (range mode)
 crit --range <base>..<head>    # commit range (range mode)
 crit                           # no args → branch diff
 ```

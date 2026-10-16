@@ -19,6 +19,7 @@ crit $PLAN_FILE                       # Review a specific file
 crit                                  # Review all changed files in the repo
 crit --pr <num|url>                   # Review a GitHub PR (range mode)
 crit --mr <iid|url>                   # Review a GitLab MR (range mode)
+crit --ado <num|url>                  # Review an Azure DevOps PR (range mode)
 crit --range <baseSHA>..<headSHA>     # Review a commit range (range mode)
 ```
 
