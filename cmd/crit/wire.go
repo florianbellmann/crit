@@ -71,8 +71,21 @@ var (
 )
 
 func selectProvider(explicit forge.Kind) (forge.Provider, error) {
-	cfg := config.LoadConfig("")
-	selection := cfg.Forge
+	kind, err := detectForgeKind(explicit)
+	if err != nil {
+		return nil, err
+	}
+	if kind == forge.AzureDevOps {
+		return azdo.Provider{}, nil
+	}
+	if kind == forge.GitLab {
+		return gitlab.NewProvider(config.LoadConfig("").GitLabURL)
+	}
+	return github.Provider{}, nil
+}
+
+func detectForgeKind(explicit forge.Kind) (forge.Kind, error) {
+	selection := config.LoadConfig("").Forge
 	if explicit != "" && explicit != forge.Auto {
 		selection = string(explicit)
 	}
@@ -86,17 +99,7 @@ func selectProvider(explicit forge.Kind) (forge.Provider, error) {
 			selection = string(forge.GitLab)
 		}
 	}
-	kind, err := forge.DetectKind(selection, remote)
-	if err != nil {
-		return nil, err
-	}
-	if kind == forge.AzureDevOps {
-		return azdo.Provider{}, nil
-	}
-	if kind == forge.GitLab {
-		return gitlab.NewProvider(cfg.GitLabURL)
-	}
-	return github.Provider{}, nil
+	return forge.DetectKind(selection, remote)
 }
 
 func glabOwnsHost(host string) bool {

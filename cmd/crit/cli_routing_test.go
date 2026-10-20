@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/tomasz-tomczyk/crit/internal/forge"
 )
 
 func TestRoutePositionalArgs(t *testing.T) {
@@ -109,6 +111,46 @@ func TestRunPositionalCLI_MRURLRewritesToReview(t *testing.T) {
 	want := []string{"--mr", "https://gitlab.com/a/b/-/merge_requests/7"}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("RunReview args = %v, want %v", got, want)
+	}
+}
+
+func TestRunPositionalCLI_ChangeNumberUsesOriginForge(t *testing.T) {
+	tests := []struct {
+		kind forge.Kind
+		want string
+	}{
+		{forge.GitHub, "--pr"},
+		{forge.GitLab, "--mr"},
+		{forge.AzureDevOps, "--ado"},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.kind), func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			var got []string
+			prevReview, prevDetect := runReviewForPositionalCLI, detectForgeKindForCLI
+			t.Cleanup(func() { runReviewForPositionalCLI, detectForgeKindForCLI = prevReview, prevDetect })
+			runReviewForPositionalCLI = func(args []string) error {
+				got = append([]string{}, args...)
+				return nil
+			}
+			detectForgeKindForCLI = func(forge.Kind) (forge.Kind, error) { return tt.kind, nil }
+
+			runPositionalCLI([]string{"2281"})
+
+			if len(got) != 2 || got[0] != tt.want || got[1] != "2281" {
+				t.Fatalf("RunReview args = %v, want [%s 2281]", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRoutePositionalArgs_NumberNamingFileStaysFileReview(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("2281", nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := routePositionalArgs([]string{"2281"}); got != positionalRouteReview {
+		t.Fatalf("routePositionalArgs = %v, want positionalRouteReview", got)
 	}
 }
 
