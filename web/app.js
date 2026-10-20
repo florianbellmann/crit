@@ -9112,6 +9112,14 @@
         treeBtn.click();
         break;
       }
+      case 'toggle_diff_mode': {
+        // Same no-op rule as `b`: only while the header toggle is shown.
+        const modeToggle = document.getElementById('diffModeToggle');
+        if (!modeToggle || getComputedStyle(modeToggle).display === 'none') return;
+        e.preventDefault();
+        modeToggle.querySelector('.toggle-btn[data-mode="' + (diffMode === 'split' ? 'unified' : 'split') + '"]').click();
+        break;
+      }
       case 'toggle_toc': {
         const tocBtn = document.getElementById('tocToggle');
         if (tocBtn.style.display === 'none') return;

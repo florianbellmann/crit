@@ -448,6 +448,18 @@ test.describe('Keyboard UI shortcuts', () => {
     await expect(toc).toHaveClass(/toc-hidden/);
   });
 
+  test('s toggles split and unified diff', async ({ page }) => {
+    await loadPage(page);
+    await clearFocus(page);
+    const split = page.locator('#diffModeToggle .toggle-btn[data-mode="split"]');
+    const unified = page.locator('#diffModeToggle .toggle-btn[data-mode="unified"]');
+    await expect(split).toHaveClass(/active/);
+    await page.keyboard.press('s');
+    await expect(unified).toHaveClass(/active/);
+    await page.keyboard.press('s');
+    await expect(split).toHaveClass(/active/);
+  });
+
   test('Shift+F triggers finish review (shows waiting overlay)', async ({ page }) => {
     await loadPage(page);
     await clearFocus(page);
