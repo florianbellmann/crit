@@ -37,7 +37,9 @@ async function focusedDiff(page: Page): Promise<string[]> {
 async function focusKey(page: Page): Promise<string> {
   const block = await page.locator('.line-block.kb-nav.focused').evaluateAll(els =>
     els.map(el => `block:${(el as HTMLElement).dataset.filePath}:${(el as HTMLElement).dataset.startLine}`));
-  return [...(await focusedDiff(page)), ...block].join(' | ');
+  const header = await page.locator('.pierre-file-header.kb-focused').evaluateAll(els =>
+    els.map(el => `header:${(el as HTMLElement).dataset.filePath}`));
+  return [...(await focusedDiff(page)), ...block, ...header].join(' | ');
 }
 
 // Press a nav key and wait until the focus has moved.
@@ -135,12 +137,14 @@ test.describe('Keyboard Navigation — Diff Split Mode', () => {
 
     const seen: string[] = [];
     for (let i = 0; i < 20; i++) {
-      seen.push(await step(page, 'j'));
-      await expect.poll(() => focusedDiff(page)).toHaveLength(1);
+      const key = await step(page, 'j');
+      seen.push(key);
+      // Collapsed files (deleted/generated) are one stop on their header.
+      if (!key.startsWith('header:')) await expect.poll(() => focusedDiff(page)).toHaveLength(1);
     }
     // Every press lands on a new line, moving forward through the files.
     expect(new Set(seen).size).toBe(seen.length);
-    const fileOrder = seen.map(k => paths.indexOf(k.split(':')[0]));
+    const fileOrder = seen.map(k => paths.indexOf(k.replace(/^header:/, '').split(':')[0]));
     expect(fileOrder).toEqual([...fileOrder].sort((a, b) => a - b));
     for (let i = 1; i < seen.length; i++) {
       const [pa, la] = seen[i - 1].split(':');

@@ -1996,7 +1996,8 @@
     const file = getFileByPath(filePath);
     if (!file) return null;
     const header = document.createElement('div');
-    header.className = 'file-header crit-review-file-header pierre-file-header' + (file.collapsed ? ' collapsed' : '');
+    header.className = 'file-header crit-review-file-header pierre-file-header' + (file.collapsed ? ' collapsed' : '') +
+      (pierreFocus && pierreFocus.header && pierreFocus.path === filePath ? ' kb-focused' : '');
     header.dataset.filePath = filePath;
     populateFileHeader(file, header);
     // The chevron is the keyboard control; the rest of the header is a
@@ -2230,9 +2231,31 @@
     return true;
   }
 
+  // Header focus (a collapsed file's j/k stop). Pierre rebuilds headers, so
+  // buildPierreFileHeader re-applies the class too.
+  function markPierreHeaderFocus() {
+    document.querySelectorAll('#filesContainer .pierre-file-header.kb-focused').forEach(function(h) { h.classList.remove('kb-focused'); });
+    if (!pierreFocus || !pierreFocus.header) return false;
+    const header = document.querySelector('#filesContainer .pierre-file-header[data-file-path="' + CSS.escape(pierreFocus.path) + '"]');
+    if (header) header.classList.add('kb-focused');
+    return !!header;
+  }
+
   function showPierreFocus() {
     if (!pierreView) return;
+    markPierreHeaderFocus();
     if (!pierreFocus) { pierreView.setSelectedLine(null); return; }
+    if (pierreFocus.header) {
+      const focus = pierreFocus;
+      hidePierreSelection();
+      document.querySelectorAll('.kb-nav.focused').forEach(function(n) { n.classList.remove('focused'); });
+      keyboardFocusTarget = { filePath: focus.path };
+      pierreView.scrollToFile(focus.path, 'nearest').then(function() {
+        whenMounted(function() { return pierreFocus !== focus || markPierreHeaderFocus(); });
+      });
+      updateTreeActive(focus.path);
+      return;
+    }
     if (pierreFocus.block !== undefined) {
       const focus = pierreFocus;
       const anchor = pierreVisualAnchor && pierreVisualAnchor.path === focus.path ? pierreVisualAnchor : null;
@@ -2267,10 +2290,12 @@
     updateTreeActive(pierreFocus.path);
   }
 
-  // j/k: next/previous diff row across files (collapsed files are skipped,
-  // lazy files load first). Visual mode stays within the anchor's file.
+  // j/k: next/previous diff row across files (lazy files load first). A
+  // collapsed file is a single stop on its header, so `v` can reach viewed
+  // files. Visual mode stays within the anchor's file.
+  const PIERRE_HEADER_ROWS = [{ line: 0, side: '', header: true }];
   function navigatePierre(direction) {
-    const order = files.filter(function(f) { return !f.collapsed && !f.orphaned; });
+    const order = files.filter(function(f) { return !f.orphaned; });
     if (order.length === 0) return;
     const fileIdx = pierreFocus ? order.findIndex(function(f) { return f.path === pierreFocus.path; }) : -1;
     function step(file, rows, fromIdx) {
@@ -2286,6 +2311,11 @@
       enter(order[nextFileIdx]);
     }
     function enter(file) {
+      if (file.collapsed) {
+        if (pierreVisualAnchor) return;
+        step(file, PIERRE_HEADER_ROWS, direction > 0 ? -1 : 1);
+        return;
+      }
       pierreView.ensureLoaded(file.path).then(function() {
         const loaded = getFileByPath(file.path);
         const rows = pierreNavRows(loaded);
@@ -2298,7 +2328,13 @@
       return;
     }
     const file = order[fileIdx];
-    const rows = pierreNavRows(file);
+    if (pierreFocus.header && !file.collapsed) {
+      // On the header of an expanded file (e.g. just un-viewed): j enters it.
+      if (direction > 0) enter(file);
+      else step(file, PIERRE_HEADER_ROWS, 0);
+      return;
+    }
+    const rows = file.collapsed ? PIERRE_HEADER_ROWS : pierreNavRows(file);
     const cur = rows.findIndex(function(r) { return r.line === pierreFocus.line && r.side === pierreFocus.side; });
     step(file, rows, cur < 0 ? (direction > 0 ? -1 : rows.length) : cur);
   }
@@ -2674,6 +2710,7 @@
   function clearPierreFocus() {
     pierreFocus = null;
     pierreVisualAnchor = null;
+    markPierreHeaderFocus();
     hidePierreSelection();
     clearPierreDocVisual();
     document.querySelectorAll('#filesContainer .kb-nav.focused').forEach(function(el) { el.classList.remove('focused'); });
@@ -2783,7 +2820,7 @@
     // Keep keyboard focus visible across the rebuild (and after a form on
     // this file closes, where main left the commented line focused).
     const focus = pierreFocus;
-    if (focus && focus.path === filePath) {
+    if (focus && focus.path === filePath && !focus.header) {
       requestAnimationFrame(function() {
         if (pierreFocus !== focus) return;
         if (focus.block !== undefined) {
@@ -8949,7 +8986,7 @@
           if (pierreVisualAnchor) {
             pierreVisualAnchor = null;
             document.body.classList.remove('visual-mode');
-          } else if (pierreFocus) {
+          } else if (pierreFocus && !pierreFocus.header) {
             pierreVisualAnchor = Object.assign({}, pierreFocus);
             document.body.classList.add('visual-mode');
           }
@@ -8963,7 +9000,7 @@
         // Otherwise fall back to the focused block.
         if (tryOpenFormFromSelection()) return;
         if (pierreView && pierreViewActive()) {
-          if (!pierreFocus) return;
+          if (!pierreFocus || pierreFocus.header) return;
           const anchor = pierreVisualAnchor && pierreVisualAnchor.path === pierreFocus.path ? pierreVisualAnchor : pierreFocus;
           const start = Math.min(anchor.line, pierreFocus.line);
           pierreVisualAnchor = null;
@@ -9029,6 +9066,25 @@
       case 'general_comment': {
         e.preventDefault();
         openReviewCommentForm();
+        break;
+      }
+      case 'toggle_viewed': {
+        // Focused line/block wins; otherwise the file the tree marks as current.
+        const loc = getFocusedCommentLocation();
+        const viewedPath = (pierreFocus && pierreFocus.path) || (loc && loc.filePath) || activeTreePath;
+        const viewedFile = getFileByPath(viewedPath);
+        if (storyActive() || !viewedFile) return;
+        e.preventDefault();
+        toggleViewed(viewedPath);
+        if (!pierreView || !pierreViewActive()) break;
+        // Viewed: the file collapses, focus moves on to the next file.
+        // Un-viewed: the file opens and focus enters its first row.
+        if (!viewedFile.viewed) pierreView.setCollapsed(viewedFile, false);
+        pierreFocus = { path: viewedPath, line: 0, side: '', header: true };
+        pierreVisualAnchor = null;
+        document.body.classList.remove('visual-mode');
+        showPierreFocus();
+        navigatePierre(1);
         break;
       }
       case 'toggle_comments': {

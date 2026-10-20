@@ -6651,6 +6651,11 @@ button.file-header-chevron {
   cursor: pointer;
 }
 button.file-header-chevron:focus-visible { outline: 2px solid var(--crit-brand); outline-offset: 1px; }
+/* j/k stop on a collapsed file (same accent as a focused line). */
+.pierre-file-header.kb-focused {
+  background: var(--crit-line-focus-bg);
+  box-shadow: inset 2px 0 0 var(--crit-brand);
+}
 .pierre-file-header.collapsed .file-header-chevron {
   transform: rotate(-90deg);
 }

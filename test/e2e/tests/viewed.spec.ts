@@ -102,6 +102,29 @@ test.describe('Viewed Checkbox — Git Mode', () => {
     await expectExpanded(page, 'plan.md');
   });
 
+  test('v marks the focused file viewed and moves focus to the next file', async ({ page }) => {
+    const [first, second] = await treePaths(page);
+    const viewedCount = page.locator('#viewedCount');
+    await page.keyboard.press('j');
+    await page.keyboard.press('v');
+    await expect(viewedCount).toContainText('1 /');
+    await expect(page.locator(`.tree-file[data-tree-path="${first}"]`)).toHaveClass(/viewed/);
+    await expect(page.locator(`.tree-file[data-tree-path="${second}"]`)).toHaveClass(/active/);
+  });
+
+  test('k reaches a viewed file header and v un-views and opens it', async ({ page }) => {
+    const [first] = await treePaths(page);
+    const viewedCount = page.locator('#viewedCount');
+    await page.keyboard.press('j');
+    await page.keyboard.press('v');
+    await expect(viewedCount).toContainText('1 /');
+    await page.keyboard.press('k');
+    await expect(fileHeader(page, first)).toHaveClass(/kb-focused/);
+    await page.keyboard.press('v');
+    await expect(viewedCount).toContainText('0 /');
+    await expect(fileHeader(page, first)).not.toHaveClass(/collapsed/);
+  });
+
   test('viewed state persists across page reload', async ({ page }) => {
     await revealFile(page, 'plan.md');
     await viewedBox(page, 'plan.md').click();
