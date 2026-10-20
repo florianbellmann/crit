@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,6 +80,7 @@ func argAfter(args []string, flag string) string {
 // stubAZ fakes the az binary. respond maps one call to its stdout.
 func stubAZ(t *testing.T, respond func(azCall) string) *[]azCall {
 	t.Helper()
+	t.Setenv(patEnv, "")
 	var calls []azCall
 	previous := commandContext
 	commandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
@@ -233,5 +236,49 @@ func TestMergeThreadsDropsRemotelyDeletedThreadDespiteSharedCommentID(t *testing
 	comments := cj.Files["main.go"].Comments
 	if len(comments) != 1 || comments[0].AzdoThreadID != 12 {
 		t.Fatalf("comments = %+v, want only thread 12", comments)
+	}
+}
+
+func TestInvokeWithPATCallsRESTDirectly(t *testing.T) {
+	tests := []struct {
+		resource string
+		route    []string
+		query    []string
+		wantPath string
+	}{
+		{resource: "pullRequests", query: []string{"$top=100"}, wantPath: "/acme/My Platform/_apis/git/repositories/widget/pullRequests"},
+		{resource: "pullRequests", route: []string{"pullRequestId=42"}, wantPath: "/acme/My Platform/_apis/git/repositories/widget/pullRequests/42"},
+		{resource: "pullRequestThreadComments", route: []string{"pullRequestId=42", "threadId=7", "commentId=3"}, wantPath: "/acme/My Platform/_apis/git/repositories/widget/pullRequests/42/threads/7/comments/3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.wantPath, func(t *testing.T) {
+			var gotPath, gotPAT, gotVersion string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath, gotVersion = r.URL.Path, r.URL.Query().Get("api-version")
+				_, gotPAT, _ = r.BasicAuth()
+				_, _ = w.Write([]byte(`{}`))
+			}))
+			defer server.Close()
+			t.Setenv(patEnv, "secret")
+			c := coords{OrgURL: server.URL + "/acme", Project: "My Platform", Repo: "widget"}
+			if _, err := c.invoke(context.Background(), "GET", tt.resource, tt.route, tt.query, nil); err != nil {
+				t.Fatal(err)
+			}
+			if gotPath != tt.wantPath || gotPAT != "secret" || gotVersion != apiVersion {
+				t.Fatalf("path=%q pat=%q api-version=%q", gotPath, gotPAT, gotVersion)
+			}
+		})
+	}
+}
+
+func TestInvokeWithRejectedPATFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNonAuthoritativeInfo)
+	}))
+	defer server.Close()
+	t.Setenv(patEnv, "expired")
+	c := coords{OrgURL: server.URL + "/acme", Project: "p", Repo: "r"}
+	if _, err := c.invoke(context.Background(), "GET", "pullRequests", nil, nil, nil); err == nil {
+		t.Fatal("want error for 203 sign-in response")
 	}
 }

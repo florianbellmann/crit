@@ -114,7 +114,7 @@ func fetchThreads(ctx context.Context, c coords, n int) ([]thread, error) {
 }
 
 func runPull(ctx context.Context, request forge.PullRequest) (forge.PullResult, error) {
-	if err := requireAZ(ctx); err != nil {
+	if err := requireAuth(ctx); err != nil {
 		return forge.PullResult{}, err
 	}
 	c, n, err := resolveTarget(ctx, request.Repo, request.ChangeSpec)
@@ -323,7 +323,7 @@ func runPush(ctx context.Context, request forge.PushRequest) (forge.PushResult, 
 	if event == "" {
 		event = "comment"
 	}
-	if err := requireAZ(ctx); err != nil {
+	if err := requireAuth(ctx); err != nil {
 		return forge.PushResult{}, err
 	}
 	c, n, err := resolveTarget(ctx, request.Repo, request.ChangeSpec)
@@ -379,7 +379,7 @@ func runPush(ctx context.Context, request forge.PushRequest) (forge.PushResult, 
 		}
 	}
 	if vote := voteFor(event); vote != "" {
-		if _, err := runAZ(ctx, "repos", "pr", "set-vote", "--org", c.OrgURL, "--id", strconv.Itoa(n), "--vote", vote); err != nil {
+		if err := c.setVote(ctx, n, vote); err != nil {
 			return result, fmt.Errorf("comments posted, but the Azure DevOps vote %q failed: %w", vote, err)
 		}
 	}

@@ -58,7 +58,7 @@ type listRaw[T any] struct {
 func (Provider) Kind() forge.Kind { return forge.AzureDevOps }
 
 func (Provider) RequireAuth(ctx context.Context, _ forge.RepoContext) error {
-	return requireAZ(ctx)
+	return requireAuth(ctx)
 }
 
 // repoCoords resolves the repository from RepoContext.Remote or from origin.
